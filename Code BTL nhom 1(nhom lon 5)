@@ -1,0 +1,180 @@
+import tkinter as tk
+
+
+# tạo hàmsự kiệnimport tkinter as tk
+from Crypto import Random
+from Crypto.Cipher import AES
+import os
+import os.path
+from tkinter import*
+from tkinter import Text
+from tkinter import filedialog
+from os import listdir
+from os.path import isfile, join
+import time
+
+#Tạo lớp xử lí mã hoá và giải mã
+class Encryptor:
+    def __init__(self, key):
+        self.key = key
+
+    def pad(self, s):
+        return s + b"\0" * (AES.block_size - len(s) % AES.block_size)
+
+    def encrypt(self, message, key, key_size=256):
+        message = self.pad(message)
+        iv = Random.new().read(AES.block_size)
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        return iv + cipher.encrypt(message)
+
+    def encrypt_file(self, file_name):
+        with open(file_name, 'rb') as fo:
+            plaintext = fo.read()
+        enc = self.encrypt(plaintext, self.key)
+        with open(file_name + ".enc", 'wb') as fo:
+            fo.write(enc)
+        os.remove(file_name)
+
+    def decrypt(self, ciphertext, key):
+        iv = ciphertext[:AES.block_size]
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        plaintext = cipher.decrypt(ciphertext[AES.block_size:])
+        return plaintext.rstrip(b"\0")
+
+    def decrypt_file(self, file_name):
+        with open(file_name, 'rb') as fo:
+            ciphertext = fo.read()
+        dec = self.decrypt(ciphertext, self.key)
+        with open(file_name[:-4], 'wb') as fo:
+            fo.write(dec)
+        os.remove(file_name)
+#Các hàm sử dụng trong chương trình chính
+def login(): #Hàm xử lí đăng nhập
+    username = entry_username.get()
+    password = entry_password.get()
+
+    # Kiểm tra tên người dùng và mật khẩu ở đây
+    if username == "admin" and password == "password":
+        window.destroy()
+        key = b'[EX\xc8\xd5\xbfI{\xa2$\x05(\xd5\x18\xbf\xc0\x85)\x10nc\x94\x02)j\xdf\xcb\xc4\x94\x9d(\x9e'
+        enc = Encryptor(key)
+        clear = lambda: os.system('cls')
+        wd = Tk()
+        wd.title("AES-Encryptor")
+        wd.geometry("700x500")
+
+        wd.attributes("-topmost", True)
+
+        ma_hoa = Label(wd, text="Mã Hóa và Giải Mã", font=("Times New Roman", 18))
+        ma_hoa.pack(side="top")
+
+        frame = Frame(wd, width=640, height=420, bg="light gray", highlightbackground="black", highlightthickness=1)
+        frame.place(x=30, y=50)
+        Input = Label(frame, text="Input:", font=('Time New Roman', 12, 'bold'), bg="light gray")
+        Input.place(x=50, y=100)
+
+        def change_color_on_hover(event, button):
+            button.config(bg="#99CCFF")  # Đổi màu nền thành đỏ khi con trỏ vào
+
+        def change_color_on_leave(event, button):
+            button.config(bg="White")  # Đổi lại màu nền ban đầu khi con trỏ rời đi
+
+        # mo dia chi file
+        def open_file_dialog():
+            filetypes = (('All files', '*.*'),('text files', '*.txt'))  # chon loai file mo
+            file_path = filedialog.askopenfilename(filetypes=filetypes)
+            if file_path:
+                Input_text.delete(1.0, END)
+                Input_text.insert(END, file_path)
+
+        # dia chi folder
+        def choose_directory():
+            folder_path = filedialog.askdirectory()
+            if folder_path:
+                # Đã chọn một thư mục, hiển thị đường dẫn
+                Input_text.delete(1.0, END)
+                Input_text.insert(END, folder_path)
+
+        button_list = []
+
+        select_file = Button(frame, text="Select File", bg="White", width=9, command=open_file_dialog)
+        select_file.place(y=85, x=560)
+        button_list.append(select_file)
+
+        select_folder = Button(frame, text="Select Folder", bg="White", width=9, command=choose_directory)
+        select_folder.place(y=115, x=560)
+        button_list.append(select_folder)
+
+
+
+        def encrypt_data():
+            input_text = Input_text.get("1.0", "end-1c")
+            if os.path.isfile(input_text) :
+                enc.encrypt_file(input_text)
+            else:
+                file_list = os.listdir(input_text)
+                for file in file_list:
+                    enc.encrypt_file(input_text+'/'+file)
+
+
+        def decrypt_data():
+            input_text = Input_text.get("1.0", "end-1c")
+            if os.path.isfile(input_text):
+                enc.decrypt_file(input_text)
+            else:
+                file_list = os.listdir(input_text)
+                for file in file_list:
+                    enc.decrypt_file(input_text + '/' + file)
+
+        Ma_hoa = Button(frame, text="Mã Hóa", font=('Time New Roman', 13, 'bold'), bg="White",command=encrypt_data)
+        Ma_hoa.place(x=50, y=230)
+        button_list.append(Ma_hoa)
+
+        Giai_ma = Button(frame, text="Giải Mã", font=('Time New Roman', 13, 'bold'), bg="White",command=decrypt_data)
+        Giai_ma.place(x=500, y=230)
+        button_list.append(Giai_ma)
+
+        # truy cap vao tung button
+        for button in button_list:
+            button.bind("<Enter>", lambda event, button=button: change_color_on_hover(event, button))
+            button.bind("<Leave>", lambda event, button=button: change_color_on_leave(event, button))
+        # tao text
+        Input_text = Text(frame, font=('TimesNewRoman', 10), width=60, height=1)
+        Input_text.focus()
+        Input_text.place(y=104, x=100)
+
+        mainloop()
+    else:
+        message_label.config(text="Đăng nhập thất bại")
+#Chương trình chính
+    #Tạo key
+def on_enter_key(event):
+    login()
+    # Tạo Cửa sổ
+window = tk.Tk()
+window.title("Đăng nhập")
+window.geometry("500x300")
+window.attributes("-topmost",True)
+window.bind('<Return>', on_enter_key)
+# Tạo các nhãn và ô nhập liệu
+label_username = tk.Label(window, text="User Name:",font=('TimeNewRoman',13, 'bold'))
+entry_username = tk.Entry(window, font=('TimeNewRoman', 13, 'bold'))
+label_password = tk.Label(window, text="Password:", font=('TimeNewRoman', 13, 'bold'))
+entry_password = tk.Entry(window, show="*", font=('TimeNewRoman', 13, 'bold'))  # Để ẩn mật khẩu
+
+label_username.place(x = 85, y = 50)
+entry_username.place(x = 205, y = 50)
+label_password.place(x = 85, y = 90)
+entry_password.place(x = 205, y = 90)
+
+# Tạo nút đăng nhập
+login_button = tk.Button(window, text="Đăng nhập", font=('TimeNewRoman', 13, 'bold'), command=login)
+login_button.place(x = 200, y = 190)
+
+# Nhãn để hiển thị thông báo
+message_label = tk.Label(window, text="")
+message_label.pack()
+
+# Chạy ứng dụng
+window.mainloop()
+
